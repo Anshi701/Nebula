@@ -4,12 +4,13 @@ use std::ffi::{CString, CStr};
 use sdl2::{self, event::Event, keyboard, mouse, video::Window};
 
 //mod planet_generator;
-use super::planet_generator::*;
+//use super::planet_generator::*;
 
 use crate::ECamera::camera::*;
 use crate::EGlobals::*;
 use crate::EShaders::prog_shader::*;
 use crate::EBuffers::basic_buffers::*;
+use crate::EPlanetSystem::EPlanetSystem::*;
 
 
 //use crate::gl_buffer::*;
@@ -17,10 +18,10 @@ use crate::EBuffers::basic_buffers::*;
 //use crate::globals::*;
 
 struct EViewPort{
-    x: u32,
-    y: u32,
-    width: u32, 
-    height: u32,
+    x: i32,
+    y: i32,
+    width: i32, 
+    height: i32,
 }
 
 pub struct EWindow<'a>{
@@ -63,7 +64,7 @@ impl<'a> EWindow<'a>{
             win: _window,
             gl_context: _gl_context,
 
-            channel: EChannel::new(0, 0, _width, _height),
+            channel: EChannel::new(0, 0, _width as i32, _height as i32),
 
             isCaptured: false,
             isWireframe: false,
@@ -136,9 +137,11 @@ impl<'a> EWindow<'a>{
             else {gl::PolygonMode( gl::FRONT_AND_BACK, gl::FILL );}
         }
 
-        CheckGLError();
+        self.channel.DrawObjects();
 
-        self.channel.drawChannel();
+        unsafe{
+            gl::Finish();
+        }
 
         self.win.gl_swap_window();
     }
@@ -148,137 +151,49 @@ impl<'a> EWindow<'a>{
 pub struct EChannel{
     id: u32,
     viewport: EViewPort,
-    camera: ECamera,
+    pub camera: ECamera,
+    planetSystem: EPlanetSystem,
+    // shader_program: EProgram,
+    // vbo: EVertBuffer,
+    // vao: EArrayBuffer,
 
-    shader_program: EProgram,
-    vbo: EVertBuffer,
-    vao: EArrayBuffer,
-
-    DB: PlanetGenerator,
+    //DB: PlanetGenerator,
 
 }
 
 impl EChannel{
-    pub fn new(x: u32, y: u32, width: u32,  height: u32,)->Self{
+    pub fn new(x: i32, y: i32, width: i32,  height: i32,)->Self{
         let mut cam: ECamera = ECamera::new();
 
-        cam.SetPosXYZ(6030., 0., 0.0);
+        cam.SetPosXYZ(1500., 0., 0.0);
         cam.SetAngles(0., 0., 0.);
 
-        let (DB, shader_program, vbo, vao) = EChannel::InitData();
+        let planetSys = EPlanetSystem::new();
 
         Self { id: 0, viewport: EViewPort { x, y, width, height } , camera: cam, 
-            shader_program,
-            vbo,
-            vao,
-            DB,
+            planetSystem: planetSys,
+            // shader_program,
+            // vbo,
+            // vao,
+            // DB,
         }
     }
 
-    fn InitData()-> (PlanetGenerator, EProgram, EVertBuffer, EArrayBuffer){
-
-        let DB: PlanetGenerator = PlanetGenerator::CreatePlanet(3);
-        let (shader_program, vbo, vao) = EChannel::setup(DB.GetTriangles()); 
-        
-        (DB, shader_program, vbo, vao)
-    }
-
-    fn setup<T>(vertices: &Vec<T>) -> (EProgram, EVertBuffer, EArrayBuffer){
-        let vert_shader = EShader::from_vert_source(
-            &CString::new(include_str!("../Resources/ShaderSrcs/Basic/triangle_vert.glsl")).unwrap()
-        ).unwrap();
-        
-        let frag_shader = EShader::from_frag_source(
-            &CString::new(include_str!("../Resources/ShaderSrcs/Basic/triangle_frag.glsl")).unwrap()
-        ).unwrap();
-    
-        let shader_program: EProgram = EProgram::from_shaders(
-            &[vert_shader, frag_shader]
-        ).unwrap();
-    
-        CheckGLError();
-
-        //shader_program.set_used();
-    
-        // set up vertex buffer object
-    
-        let l = vertices.len();
-        let sz = std::mem::size_of::<T>();
-    
-        //let size = (l * sz) as gl::types::GLsizeiptr;
-    
-        let VertBuf: EVertBuffer = EVertBuffer::new(
-            gl::ARRAY_BUFFER,
-            (l * sz) as gl::types::GLsizeiptr,
-            gl::STATIC_DRAW, 
-        );
-
-        CheckGLError();
-
-        VertBuf.set_data(vertices.as_slice());
-    
-        let ArrayBuf: EArrayBuffer = EArrayBuffer::new(
-            0,         // index of the generic vertex attribute ("layout (location = 0)")
-            3,         // the number of components per generic vertex attribute
-            gl::FLOAT, // data type
-            gl::FALSE, // normalized (int-to-float conversion)
-            (3 * std::mem::size_of::<f32>()) as gl::types::GLint, // stride (byte offset between consecutive attributes)
-            0,
-        );
-
-        CheckGLError();
-
-        VertBuf.bind();
-        ArrayBuf.set_attribute();
-        VertBuf.un_bind();
-
-        CheckGLError();
-        // set up shared state for window
-    
-        unsafe {
-            gl::Viewport(0, 0, 1280, 800);
-            gl::ClearColor(0.3, 0.3, 0.5, 1.0);
-        }
-    
-        return (shader_program, VertBuf, ArrayBuf);
-    }
-
-    pub fn drawChannel(&mut self){
+    pub fn DrawObjects(&mut self){
+        self.SetupViewport();
         self.camera.CalcMatrices();
+        self.planetSystem.Draw(&self);
 
-        CheckGLError();
+    }
 
+    fn SetupViewport(&self){
         unsafe {
+            gl::Viewport(self.viewport.x, self.viewport.y, self.viewport.width, self.viewport.height);
+            gl::ClearColor(0.3, 0.3, 0.5, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
-            
-            self.shader_program.set_used();
-
-            self.shader_program.SetMVP(self.camera.GetMVP().as_slice());
-
-            CheckGLError();
-
-
-            CheckGLError();
-
-            self.vbo.bind();
-            self.vao.bind();
-
-            CheckGLError();
-        
-            //gl::BindVertexArray(vao);
-            gl::DrawArrays(
-                gl::TRIANGLES, // mode
-                0,             // starting index in the enabled arrays
-                self.DB.GetTrianglesCount() as GLsizei,             // number of indices to be rendered
-            );
-
-            CheckGLError();
-
-            self.vbo.un_bind();
-            self.vao.un_bind();
-
-            gl::Finish();
         }
     }
+
+    
 }
 

@@ -38,33 +38,6 @@ pub struct MapPoint{
     
 // }
 
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct Vertex{
-    x: f32,
-    y: f32,
-    z: f32,
-}
-
-impl Vertex{
-    pub fn ToXYZ(self) -> Self{
-        let (x, y, z) = LLAtoXYZ(self.x, self.y, self.z);
-        Vertex { x, y, z }
-    }
-
-    pub fn ToLLA(self) -> Self{
-        let (lat, lon, alt) = XYZtoLLA(self.x, self.y, self.z);
-        Vertex { x:lat, y:lon, z:alt }
-    }
-}
-
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct Triangle{
-    v1: Vertex,
-    v2: Vertex,
-    v3: Vertex,
-}
 
 #[derive(Clone)]
 pub struct Tile{
@@ -87,13 +60,14 @@ impl Tile{
         P2  : MapPoint,
         P3  : MapPoint,
         P4  : MapPoint,
+        size: &f32, offset: &EPos
     ) -> Self{
         let mut tile = Self { Lvl, Quater, P1, P2, P3, P4, Triangles: Vec::<Triangle>::new() };
-        tile.MakeTileTriangles(tile.P1, tile.P3);
+        tile.MakeTileTriangles(tile.P1, tile.P3, size, offset);
         tile
     }
 
-    pub fn MakeTileTriangles(&mut self, p1: MapPoint, p2: MapPoint){
+    pub fn MakeTileTriangles(&mut self, p1: MapPoint, p2: MapPoint, size: &f32, offset: &EPos){
         let mesh_size = TILE_DIM as f32;
         
         if !self.Triangles.is_empty() {return;}
@@ -143,9 +117,9 @@ impl Tile{
                 v3.x = BotLeft.x; v3.y = BotLeft.y; 
     
                 self.Triangles.push(Triangle {  
-                    v1: v1.ToXYZ(), 
-                    v2: v2.ToXYZ(), 
-                    v3: v3.ToXYZ() 
+                    v1: v1.ToXYZ().ToRadius(size).ToOffsetPos(offset), 
+                    v2: v2.ToXYZ().ToRadius(size).ToOffsetPos(offset), 
+                    v3: v3.ToXYZ().ToRadius(size).ToOffsetPos(offset) 
                 });
     
                 v1.x = TopRigh.x; v1.y = TopRigh.y; 
@@ -153,9 +127,9 @@ impl Tile{
                 v3.x = BotLeft.x; v3.y = BotLeft.y; 
     
                 self.Triangles.push(Triangle {  
-                    v1: v1.ToXYZ(), 
-                    v2: v2.ToXYZ(), 
-                    v3: v3.ToXYZ() 
+                    v1: v1.ToXYZ().ToRadius(size).ToOffsetPos(offset), 
+                    v2: v2.ToXYZ().ToRadius(size).ToOffsetPos(offset), 
+                    v3: v3.ToXYZ().ToRadius(size).ToOffsetPos(offset) 
                 });
     
             }
@@ -175,18 +149,20 @@ pub struct PlanetGenerator<>{
     counter2: i32,
     counter3: i32,
     counter4: i32,
+
+    size: f32, 
+    offset: EPos
 }
 
 impl PlanetGenerator{
 
 
-    pub fn CreatePlanet(gen_lvl: u32, ) -> Self{
+    pub fn CreatePlanet(gen_lvl: u32, size: f32, offset: &EPos) -> Self{
         let All_tiles = Vec::<Tile>::new();
         let All_triangles = Vec::<Triangle>::new();
-        //for lvl in 1..gen_lvl{
-        //    
-        //}
-        let mut Planet = Self {GenerationLevel: gen_lvl, All_tiles, All_triangles, counter: 0 , counter1:0, counter2:0, counter3:0, counter4:0};
+        
+        let mut Planet = Self {GenerationLevel: gen_lvl, All_tiles, All_triangles, size, offset: offset.clone(),
+                                                counter: 0 , counter1:0, counter2:0, counter3:0, counter4:0};
         let PlanetRef = &mut Planet;
 
         let semisphere_left = Tile::new( 
@@ -196,6 +172,7 @@ impl PlanetGenerator{
              MapPoint{x:  SCALE_CNT, y:  SCALE_LAT},
              MapPoint{x:  SCALE_CNT, y: -SCALE_LAT},
              MapPoint{x: -SCALE_LON, y: -SCALE_LAT},
+             &PlanetRef.size, &PlanetRef.offset
         );
 
         let semisphere_right = Tile::new( 
@@ -205,6 +182,7 @@ impl PlanetGenerator{
             MapPoint{x:  SCALE_LON, y:  SCALE_LAT},
             MapPoint{x:  SCALE_LON, y: -SCALE_LAT},
             MapPoint{x:  SCALE_CNT, y: -SCALE_LAT},
+            &PlanetRef.size, &PlanetRef.offset
         );
 
         PlanetRef.CreateTree(semisphere_left);
@@ -335,6 +313,7 @@ impl PlanetGenerator{
             p2,
             p3,
             p4,
+            &self.size, &self.offset
        );
        Some(child)
 

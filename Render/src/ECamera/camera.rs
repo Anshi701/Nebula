@@ -101,7 +101,8 @@ impl ECamera{
 
     pub fn CalcMatrices(&mut self){
  
-        let base = CreateBaseGeoMatr( self.X, self.Y, self.Z);
+        //let base = CreateBaseGeoMatr( self.X, self.Y, self.Z);
+        let base = CreateBaseMatr();
         let transl = GetTranslationMatrix(self.X, self.Y, self.Z);
         let rot = GetRotationMatrix(self.Yaw, self.Pitch, self.Roll);
         let ModelView = rot * base * transl;

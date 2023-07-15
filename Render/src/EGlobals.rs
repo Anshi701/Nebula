@@ -1,5 +1,79 @@
 
 use gl::{self, types::*}; 
+use crate::EMath::emath::*;
+
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct EPos{
+    pub X: f32, 
+    pub Y: f32, 
+    pub Z: f32,
+}
+
+impl EPos {
+    pub fn new(x: f32, y: f32, z: f32) -> EPos{
+        Self { X: x, Y: y, Z: z }  
+    }
+
+    pub fn zero() -> EPos{
+        Self { X: 0.0, Y: 0.0, Z: 0.0 }  
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct Vertex{
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+}
+
+impl Vertex{
+    pub fn ToXYZ(self) -> Self{
+        let (x, y, z) = LLAtoXYZ(self.x, self.y, self.z);
+        Vertex { x, y, z }
+    }
+
+    pub fn ToRadius(mut self, newR: &f32)-> Self{
+        let oldR = self.GetRadius();
+        self.x = self.x * (newR / oldR);
+        self.y = self.y * (newR / oldR);
+        self.z = self.z * (newR / oldR);
+        self
+    }
+
+    pub fn ToOffsetPos(mut self, nPos: &EPos) -> Self{
+        self.x = self.x + nPos.X;
+        self.y = self.y + nPos.Y;
+        self.z = self.z + nPos.Z;
+        self
+    }
+
+    pub fn ToOffsetXYZ(mut self, nX: &f32, nY: &f32, nZ: &f32,) -> Self{
+        self.x = self.x + nX;
+        self.y = self.y + nY;
+        self.z = self.z + nZ;
+        self
+    }
+
+    pub fn ToLLA(self) -> Self{
+        let (lat, lon, alt) = XYZtoLLA(self.x, self.y, self.z);
+        Vertex { x:lat, y:lon, z:alt }
+    }
+
+    pub fn GetRadius(&self) -> f32 {
+        return (self.x * self.x + self.y * self.y + self.z * self.z).sqrt();
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct Triangle{
+    pub v1: Vertex,
+    pub v2: Vertex,
+    pub v3: Vertex,
+}
 
 
 pub fn CheckGLError(){

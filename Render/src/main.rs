@@ -8,6 +8,7 @@ mod ECamera;
 mod EMath;
 mod EGlobals;
 mod EWinChan;
+mod EPlanetSystem;
 
 use EWinChan::win_chan::*;
 
