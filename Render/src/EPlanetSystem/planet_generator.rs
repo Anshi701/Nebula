@@ -90,9 +90,9 @@ impl Tile{
         let mut m ;
         let mut n ;
     
-        let mut v1 = Vertex{ x: 0., y: 0., z: 0. };
-        let mut v2 = Vertex{ x: 0., y: 0., z: 0. };
-        let mut v3 = Vertex{ x: 0., y: 0., z: 0. };
+        let mut v1 = Vertex{ x: 0., y: 0., z: 0. , U: 0., V: 0.};
+        let mut v2 = Vertex{ x: 0., y: 0., z: 0. , U: 0., V: 0.};
+        let mut v3 = Vertex{ x: 0., y: 0., z: 0. , U: 0., V: 0.};
         //let mut t  = Triangle{v1, v2, v3};
     
         for i in 0..(TILE_DIM){
@@ -112,26 +112,44 @@ impl Tile{
                 BotRigh.x = TopLeftBig.x + step_x * (m + 1.);
                 BotRigh.y = TopLeftBig.y + step_y * (n + 1.);
     
-                v1.x = TopLeft.x; v1.y = TopLeft.y; 
-                v2.x = TopRigh.x; v2.y = TopRigh.y; 
-                v3.x = BotLeft.x; v3.y = BotLeft.y; 
+                // ============================================================
+                // order is: lon, lat. So inverting
+                v1.x = TopLeft.y; v1.y = TopLeft.x; v1.z = *size;
+                v2.x = TopRigh.y; v2.y = TopRigh.x; v2.z = *size;
+                v3.x = BotLeft.y; v3.y = BotLeft.x; v3.z = *size;
+                
+                // ---- Calculating UV coordinates for textures
+                (v1.U, v1.V) = LatLonToUV(v1.x, v1.y);
+                (v2.U, v2.V) = LatLonToUV(v2.x, v2.y);
+                (v3.U, v3.V) = LatLonToUV(v3.x, v3.y);
+                // --------------------------------------
+                let triangle = Triangle {  
+                    v1: v1.ToXYZ().ToOffsetPos(offset), 
+                    v2: v2.ToXYZ().ToOffsetPos(offset), 
+                    v3: v3.ToXYZ().ToOffsetPos(offset) 
+                };
+                self.Triangles.push(triangle);
+                
+                // ============================================================
+                // order is: lon, lat. So inverting
+                v1.x = TopRigh.y; v1.y = TopRigh.x; v1.z = *size;
+                v2.x = BotRigh.y; v2.y = BotRigh.x; v2.z = *size;
+                v3.x = BotLeft.y; v3.y = BotLeft.x; v3.z = *size;
+
+                // ---- Calculating UV coordinates for textures
+                (v1.U, v1.V) = LatLonToUV(v1.x, v1.y);
+                (v2.U, v2.V) = LatLonToUV(v2.x, v2.y);
+                (v3.U, v3.V) = LatLonToUV(v3.x, v3.y);
+                // --------------------------------------
     
-                self.Triangles.push(Triangle {  
-                    v1: v1.ToXYZ().ToRadius(size).ToOffsetPos(offset), 
-                    v2: v2.ToXYZ().ToRadius(size).ToOffsetPos(offset), 
-                    v3: v3.ToXYZ().ToRadius(size).ToOffsetPos(offset) 
-                });
-    
-                v1.x = TopRigh.x; v1.y = TopRigh.y; 
-                v2.x = BotRigh.x; v2.y = BotRigh.y; 
-                v3.x = BotLeft.x; v3.y = BotLeft.y; 
-    
-                self.Triangles.push(Triangle {  
-                    v1: v1.ToXYZ().ToRadius(size).ToOffsetPos(offset), 
-                    v2: v2.ToXYZ().ToRadius(size).ToOffsetPos(offset), 
-                    v3: v3.ToXYZ().ToRadius(size).ToOffsetPos(offset) 
-                });
-    
+                let triangle = Triangle {  
+                    v1: v1.ToXYZ().ToOffsetPos(offset), 
+                    v2: v2.ToXYZ().ToOffsetPos(offset), 
+                    v3: v3.ToXYZ().ToOffsetPos(offset) 
+                };
+                self.Triangles.push(triangle);
+                
+                // ============================================================
             }
         }
     

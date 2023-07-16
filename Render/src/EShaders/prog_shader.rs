@@ -51,6 +51,12 @@ impl EProgram {
         gl::GetUniformLocation(self.id, GetCStr(name).as_ptr())
     }
 
+    pub fn SetTextureUnit(&self, texName: &str, unit: i32){
+        unsafe{
+            gl::Uniform1i(self.GetLocation(texName), unit);
+        }
+    }
+
     pub fn SetMVP(&self, matr: &[f32]){
         unsafe {
             let loc: GLint = self.GetLocation("MVP");

@@ -27,12 +27,14 @@ pub struct Vertex{
     pub x: f32,
     pub y: f32,
     pub z: f32,
+    pub U: f32,
+    pub V: f32,
 }
 
 impl Vertex{
     pub fn ToXYZ(self) -> Self{
         let (x, y, z) = LLAtoXYZ(self.x, self.y, self.z);
-        Vertex { x, y, z }
+        Vertex { x, y, z, U: self.U, V: self.V}
     }
 
     pub fn ToRadius(mut self, newR: &f32)-> Self{
@@ -59,7 +61,7 @@ impl Vertex{
 
     pub fn ToLLA(self) -> Self{
         let (lat, lon, alt) = XYZtoLLA(self.x, self.y, self.z);
-        Vertex { x:lat, y:lon, z:alt }
+        Vertex { x:lat, y:lon, z:alt, U: self.U, V: self.V}
     }
 
     pub fn GetRadius(&self) -> f32 {

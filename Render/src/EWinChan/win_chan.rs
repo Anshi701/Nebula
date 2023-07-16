@@ -153,6 +153,7 @@ pub struct EChannel{
     viewport: EViewPort,
     pub camera: ECamera,
     planetSystem: EPlanetSystem,
+    CoordSystem: ECoordinateSystem
     // shader_program: EProgram,
     // vbo: EVertBuffer,
     // vao: EArrayBuffer,
@@ -169,9 +170,10 @@ impl EChannel{
         cam.SetAngles(0., 0., 0.);
 
         let planetSys = EPlanetSystem::new();
+        let CoordSystem = ECoordinateSystem::new();
 
         Self { id: 0, viewport: EViewPort { x, y, width, height } , camera: cam, 
-            planetSystem: planetSys,
+            planetSystem: planetSys, CoordSystem
             // shader_program,
             // vbo,
             // vao,
@@ -182,6 +184,7 @@ impl EChannel{
     pub fn DrawObjects(&mut self){
         self.SetupViewport();
         self.camera.CalcMatrices();
+        self.DrawCoordinateSystem();
         self.planetSystem.Draw(&self);
 
     }
@@ -190,10 +193,137 @@ impl EChannel{
         unsafe {
             gl::Viewport(self.viewport.x, self.viewport.y, self.viewport.width, self.viewport.height);
             gl::ClearColor(0.3, 0.3, 0.5, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+            gl::Enable(gl::DEPTH_TEST);
+            gl::DepthFunc(gl::LESS );
+
         }
+    }
+
+    fn DrawCoordinateSystem(&self){
+        self.CoordSystem.Draw(self);
     }
 
     
 }
 
+pub struct CoordVertex{
+    x: f32,
+    y: f32, 
+    z: f32, 
+    r: f32, 
+    g: f32, 
+    b: f32,
+}
+
+pub struct ECoordinateSystem{
+    shader_program: EProgram,
+    VertexBuffer: EVertBuffer,
+    ArrayBuf: EArrayBuffer,
+}
+
+impl ECoordinateSystem {
+    pub fn new () -> ECoordinateSystem{
+        
+
+        // ############################### SHADERS ################################################
+        let vert_shader = EShader::from_vert_source(
+            &CString::new(include_str!("../Resources/ShaderSrcs/CoordSys/coordSys_vert.glsl")).unwrap()
+        ).unwrap();
+        
+        let frag_shader = EShader::from_frag_source(
+            &CString::new(include_str!("../Resources/ShaderSrcs/CoordSys/coordSys_frag.glsl")).unwrap()
+        ).unwrap();
+    
+        let shader_program: EProgram = EProgram::from_shaders(
+            &[vert_shader, frag_shader]
+        ).unwrap();
+    
+        CheckGLError();
+
+        // ############################### BUFFERS ################################################
+
+        // 4 points == 4 * (3 * 4) ==
+        let mut vertices = Vec::<CoordVertex>::new();
+        vertices.push(CoordVertex{x:        0.0, y:       0.0, z:       0.0, r: 1.0, g: 0.0, b: 0.0});
+        vertices.push(CoordVertex{x:  1000000.0, y:       0.0, z:       0.0, r: 1.0, g: 0.0, b: 0.0});
+
+        vertices.push(CoordVertex{x:        0.0, y:       0.0, z:       0.0, r: 0.0, g: 1.0, b: 0.0});
+        vertices.push(CoordVertex{x:        0.0, y: 1000000.0, z:       0.0, r: 0.0, g: 1.0, b: 0.0});
+        
+        vertices.push(CoordVertex{x:        0.0, y:       0.0, z:       0.0, r: 0.0, g: 0.0, b: 1.0});
+        vertices.push(CoordVertex{x:        0.0, y:       0.0, z: 1000000.0, r: 0.0, g: 0.0, b: 1.0});
+
+        let POINT_COUNT = vertices.len();
+        let coordSize = std::mem::size_of::<CoordVertex>();
+        let sz = POINT_COUNT * coordSize;
+
+        let VertexBuffer: EVertBuffer = EVertBuffer::new(
+            gl::ARRAY_BUFFER,
+            (sz) as gl::types::GLsizeiptr,
+            gl::STATIC_DRAW, 
+        ); 
+
+        VertexBuffer.set_data(vertices.as_slice());
+
+        let attrStride =        (6 * std::mem::size_of::<f32>()) as gl::types::GLint;
+        let attrSize_Position = (3 * std::mem::size_of::<f32>()) as gl::types::GLint;
+        //let attrSize_UV = (2 * std::mem::size_of::<f32>()) as gl::types::GLint;
+
+        let attrOffset_Color = attrSize_Position;
+
+        let Attrib_Position: EVertAttrib = EVertAttrib::new(
+            0,         // index of the generic vertex attribute ("layout (location = 0)")
+            3,         // the number of components per generic vertex attribute
+            gl::FLOAT, // data type
+            gl::FALSE, // normalized (int-to-float conversion)
+            attrStride, // stride (byte offset between consecutive attributes)
+            0,
+        );
+
+        let Attrib_Color: EVertAttrib = EVertAttrib::new(
+            1,         // index of the generic vertex attribute ("layout (location = 0)")
+            3,         // the number of components per generic vertex attribute
+            gl::FLOAT, // data type
+            gl::FALSE, // normalized (int-to-float conversion)
+            attrStride, // stride (byte offset between consecutive attributes)
+            attrOffset_Color,
+        );
+
+        let mut attrVec = Vec::<EVertAttrib>::new();
+        attrVec.push(Attrib_Position);
+        attrVec.push(Attrib_Color);
+
+        let ArrayBuf: EArrayBuffer = EArrayBuffer::new(attrVec);
+        CheckGLError();
+
+        VertexBuffer.bind();
+        ArrayBuf.set_attribute();
+        VertexBuffer.un_bind();
+
+        CheckGLError();
+
+        Self { shader_program, VertexBuffer, ArrayBuf }
+
+    }
+
+    pub fn Draw(&self, channel: &EChannel){
+        unsafe{
+
+            self.shader_program.set_used();
+            self.shader_program.SetMVP(channel.camera.GetMVP().as_slice());
+
+            self.VertexBuffer.bind();
+            self.ArrayBuf.bind();
+            gl::DrawArrays(
+                gl::LINES, // mode
+                0,             // starting index in the enabled arrays
+                (6) as GLsizei,             // number of indices to be rendered
+            );
+
+            self.VertexBuffer.un_bind();
+            self.ArrayBuf.un_bind();
+        }
+    }
+
+}

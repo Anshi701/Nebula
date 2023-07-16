@@ -29,11 +29,18 @@ pub fn XYZtoLLA(x: f32, y: f32, z: f32) -> (f32,f32,f32){
 }
 
 pub fn LLAtoXYZ(lat: f32, lon: f32, alt: f32) -> (f32,f32,f32){
-    let x: f32 = (alt + EARTH_RAD) * (lat * DEG2RAD).sin() * (lon * DEG2RAD).cos();
-    let y: f32 = (alt + EARTH_RAD) * (lat * DEG2RAD).sin() * (lon * DEG2RAD).sin();
-    let z: f32 = (alt + EARTH_RAD) * (lat * DEG2RAD).cos();
+    let x: f32 = (alt) * ((lat - 90.0) * DEG2RAD).sin() * (lon * DEG2RAD).cos();
+    let y: f32 = (alt) * ((lat - 90.0) * DEG2RAD).sin() * (lon * DEG2RAD).sin();
+    let z: f32 = (alt) * ((lat - 90.0) * DEG2RAD).cos();
 
     (x, y, z)
+}
+
+pub fn LatLonToUV(lat: f32, lon: f32)-> (f32,f32){
+    let U: f32 = (        (lon / SCALE_LON) + 1.0) / 2.0; 
+    let V: f32 = (-1.0 * ((lat / SCALE_LAT) + 1.0)) / 2.0; 
+
+    (U, V)
 }
 
 pub fn dot(v1: na::Vector3<f32>, v2: na::Vector3<f32>) -> f32{

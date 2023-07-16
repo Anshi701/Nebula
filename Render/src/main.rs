@@ -12,7 +12,7 @@ mod EPlanetSystem;
 
 use EWinChan::win_chan::*;
 
-use std::{ffi::CString, vec, time::Duration, time::SystemTime};
+use std::{ffi::CString, vec, time::Duration, time::SystemTime, default};
 use sdl2::{self, event::Event, keyboard, mouse};
 use gl::types::*;
 
@@ -25,6 +25,13 @@ fn main() {
     
     loop{
         for event in event_pump.poll_iter(){
+            match &event {
+                Event::Quit {..} => return,
+                Event::KeyDown {
+                    keycode: Some(keyboard::Keycode::Escape), .. 
+                } => { return },
+                _ => {},
+            }
             ewin .HandleEvent(&event);
             //ewin2.HandleEvent(&event);
         }
